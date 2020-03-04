@@ -1,40 +1,97 @@
 <template>
   <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+    <h1>Lunie statistics</h1>
+    <select @change="changeNetwork">
+      <option v-for="(network, index) in networks" :key="`step-${index}`">{{ network }}</option>
+    </select>
+    <div class="group">
+      <div class="block">
+        <h2>Address count</h2>
+        {{totalCount}}
+      </div>
+      <div class="block">
+        <h2>Total stake</h2>
+        {{totalStake}}
+      </div>
+      <div class="block">
+        <h2>Liquid stake</h2>
+        {{liquidStake}}
+      </div>
+      <div class="block">
+        <h2>Total rewards</h2>
+        {{totalRewards}}
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import { graphQLQuery } from "../helpers"
 export default {
   name: 'HelloWorld',
   props: {
     msg: String
+  },
+  data: () => ({
+    selectedNetwork: false,
+    networks: [],
+    totalStake: 0,
+    liquidStake: 0,
+    totalRewards: 0,
+    totalCount: 0
+  }),
+  mounted(){
+    this.getNetworks().then(async () => {
+      // load other elements
+      await this.loadData()
+    })
+  },
+  methods: {
+    async changeNetwork(e){
+      this.selectedNetwork = e.target.value
+      await this.loadData()
+    },
+    async loadData() {
+      let stake = await this.getTotalByAction('totalStake')
+      this.totalStake = stake.sum.value
+      this.totalCount = stake.count
+
+      stake = await this.getTotalByAction('liquidStake')
+      this.liquidStake = stake.sum.value
+
+      stake = await this.getTotalByAction('totalRewards')
+      this.totalRewards = stake.sum.value
+    },
+    async getNetworks() {
+      const { data } = await graphQLQuery(`{
+        statistics(distinct_on: network) {
+          network
+        }
+      }`)
+      this.networks = data.statistics.map(st => st.network)
+      if(this.networks.length){
+        this.selectedNetwork = this.networks[0]
+      }
+    },
+    async getTotalByAction(action) {
+      const { data } = await graphQLQuery(`{
+        statistics_aggregate(distinct_on: address, where: {_and: {value: {}, network: {_eq: "${this.selectedNetwork}"}, action: {_eq: "${action}"}}}) {
+          aggregate {
+            count(distinct: true, columns: address)
+            sum {
+              value
+            }
+            avg {
+              value
+            }
+            max {
+              value
+            }
+          }
+        }
+      }`)
+      return data.statistics_aggregate.aggregate
+    }
   }
 }
 </script>

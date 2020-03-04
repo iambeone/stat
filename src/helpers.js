@@ -22,5 +22,5 @@ const graphQLQuery = ({ hasura_url, hasura_admin_key }) => async query => {
 }
 
 module.exports = {
-    graphQLQuery: graphQLQuery(process.env.HASURA_URL, process.env.HASURA_ADMIN_KEY)
+    graphQLQuery: graphQLQuery( { hasura_url: process.env.HASURA_URL, hasura_admin_key: process.env.HASURA_ADMIN_KEY })
 }
