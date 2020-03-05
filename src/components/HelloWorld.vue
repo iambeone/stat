@@ -9,6 +9,8 @@
         <h2>Address count</h2>
         {{totalCount}}
       </div>
+    </div>
+    <div class="group">
       <div class="block">
         <h2>Total stake</h2>
         {{totalStake}}
@@ -20,6 +22,20 @@
       <div class="block">
         <h2>Total rewards</h2>
         {{totalRewards}}
+      </div>
+    </div>
+    <div class="group">
+      <div class="block">
+        <h2>Send</h2>
+        {{send}}
+      </div>
+      <div class="block">
+        <h2>Delegate</h2>
+        {{delegate}}
+      </div>
+      <div class="block">
+        <h2>Undelegate</h2>
+        {{undeligate}}
       </div>
     </div>
   </div>
@@ -38,7 +54,10 @@ export default {
     totalStake: 0,
     liquidStake: 0,
     totalRewards: 0,
-    totalCount: 0
+    totalCount: 0,
+    send: 0,
+    delegate: 0,
+    undeligate: 0
   }),
   mounted(){
     this.getNetworks().then(async () => {
@@ -61,6 +80,15 @@ export default {
 
       stake = await this.getTotalByAction('totalRewards')
       this.totalRewards = stake.sum.value
+
+      stake = await this.getTotalByAction('Send')
+      this.send = stake.sum.value / 1000000
+
+      stake = await this.getTotalByAction('Delegate')
+      this.delegate = stake.sum.value / 1000000
+
+      stake = await this.getTotalByAction('Undelegate')
+      this.undeligate = stake.sum.value / 1000000
     },
     async getNetworks() {
       const { data } = await graphQLQuery(`{
@@ -111,5 +139,15 @@ li {
 }
 a {
   color: #42b983;
+}
+.group{
+  display: flex;
+  max-width: 600px;
+  margin: 0 auto 20px;
+  justify-content: space-between;
+}
+.block{
+  text-align: center;
+  width: 160px;
 }
 </style>
