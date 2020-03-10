@@ -2,5 +2,5 @@ module.exports = {
     devServer: {
         disableHostCheck: true
     },
-    publicPath: '/stats'
+    publicPath: process.env.VUE_APP_PATH
 }
