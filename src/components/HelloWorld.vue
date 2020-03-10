@@ -13,29 +13,32 @@
     <div class="group">
       <div class="block">
         <h2>Total stake</h2>
-        {{totalStake}}
+        {{totalStake | pretifyNumber}}
       </div>
       <div class="block">
         <h2>Liquid stake</h2>
-        {{liquidStake}}
+        {{liquidStake | pretifyNumber}}
       </div>
       <div class="block">
         <h2>Total rewards</h2>
-        {{totalRewards}}
+        {{totalRewards | pretifyNumber}}
       </div>
     </div>
     <div class="group">
       <div class="block">
         <h2>Send</h2>
-        {{send}}
+        {{send | pretifyNumber}}
+        <span class="delta">{{sendDelta | pretifyNumber}}</span>
       </div>
       <div class="block">
         <h2>Delegate</h2>
-        {{delegate}}
+        {{delegate | pretifyNumber}}
+        <span class="delta">{{delegateDelta | pretifyNumber}}</span>
       </div>
       <div class="block">
         <h2>Undelegate</h2>
-        {{undeligate}}
+        {{undeligate | pretifyNumber}}
+        <span class="delta">{{undeligateDelta | pretifyNumber}}</span>
       </div>
     </div>
   </div>
@@ -43,6 +46,7 @@
 
 <script>
 import { graphQLQuery } from "../helpers"
+import { pretifyNumber } from "../num"
 export default {
   name: 'HelloWorld',
   props: {
@@ -57,8 +61,14 @@ export default {
     totalCount: 0,
     send: 0,
     delegate: 0,
-    undeligate: 0
+    undeligate: 0,
+    sendDelta: 0,
+    delegateDelta: 0,
+    undeligateDelta: 0
   }),
+  filters: {
+    pretifyNumber
+  },
   mounted(){
     this.getNetworks().then(async () => {
       // load other elements
@@ -71,6 +81,14 @@ export default {
       await this.loadData()
     },
     async loadData() {
+      // last week monday
+      let date = new Date()
+      let prevMonday = new Date(new Date().setDate(date.getDate() - 6 - date.getDay()))
+      prevMonday = (prevMonday.getMonth() + 1) + '-' + prevMonday.getDate() + '-' + prevMonday.getFullYear()
+      let prevSunday = new Date(new Date().setDate(date.getDate() - date.getDay()))
+      prevSunday = (prevSunday.getMonth() + 1) + '-' + prevSunday.getDate() + '-' + prevSunday.getFullYear()
+      let thisMonday = new Date(new Date().setDate(date.getDate() + 1 - date.getDay()))
+      thisMonday = (thisMonday.getMonth() + 1) + '-' + thisMonday.getDate() + '-' + thisMonday.getFullYear()
       let stake = await this.getTotalByAction('totalStake')
       this.totalStake = stake.sum.value
       this.totalCount = stake.count
@@ -81,14 +99,25 @@ export default {
       stake = await this.getTotalByAction('totalRewards')
       this.totalRewards = stake.sum.value
 
-      stake = await this.getTotalByAction('Send')
+      // this week values
+      stake = await this.getTotalByAction('send', thisMonday)
       this.send = stake.sum.value / 1000000
 
-      stake = await this.getTotalByAction('Delegate')
+      stake = await this.getTotalByAction('Delegate', thisMonday)
       this.delegate = stake.sum.value / 1000000
 
-      stake = await this.getTotalByAction('Undelegate')
+      stake = await this.getTotalByAction('Undelegate', thisMonday)
       this.undeligate = stake.sum.value / 1000000
+      // deltas
+
+      stake = await this.getTotalByAction('send', prevMonday, prevSunday)
+      this.sendDelta = this.send - (stake.sum.value / 1000000)
+
+      stake = await this.getTotalByAction('Delegate', prevMonday, prevSunday)
+      this.delegateDelta = this.delegate - (stake.sum.value / 1000000)
+
+      stake = await this.getTotalByAction('Undelegate', prevMonday, prevSunday)
+      this.undeligateDelta = this.undeligate - (stake.sum.value / 1000000)
     },
     async getNetworks() {
       const { data } = await graphQLQuery(`{
@@ -101,9 +130,19 @@ export default {
         this.selectedNetwork = this.networks[0]
       }
     },
-    async getTotalByAction(action) {
+    async getTotalByAction(action, from = null, to = null) {
+      let dateRestriction = ''
+      if(from){
+        dateRestriction += `added: {_gte: "${from}"}` // data format mm-dd-yyyy
+        if(to){
+          dateRestriction + `, _and: {added: {_lte: "${to}"}}`
+        }
+      }else if (to){
+        dateRestriction += `added: {_lte: "${to}"}` // data format mm-dd-yyyy
+      }
+      dateRestriction = dateRestriction ? `, _and: {${dateRestriction}}, ` : ', '
       const { data } = await graphQLQuery(`{
-        statistics_aggregate(distinct_on: address, where: {_and: {value: {}, network: {_eq: "${this.selectedNetwork}"}, action: {_eq: "${action}"}}}) {
+        statistics_aggregate(distinct_on: address, where: {_and: {network: {_eq: "${this.selectedNetwork}"} ${dateRestriction} action: {_eq: "${action}"}}}) {
           aggregate {
             count(distinct: true, columns: address)
             sum {
@@ -149,5 +188,10 @@ a {
 .block{
   text-align: center;
   width: 160px;
+}
+.delta{
+  display: block;
+  font-size: 14px;
+  margin-top: 10px;
 }
 </style>
