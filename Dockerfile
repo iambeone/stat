@@ -7,6 +7,8 @@ COPY ./src ./src
 COPY ./public ./public
 
 COPY package.json .
+COPY babel.config.js .
+COPY vue.config.js .
 
 RUN yarn install
 
