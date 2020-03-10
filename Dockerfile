@@ -8,8 +8,6 @@ COPY ./public ./public
 
 COPY package.json .
 
-COPY index.js .
-
 RUN yarn install
 
 CMD [ "yarn", "serve"]
